@@ -1,31 +1,32 @@
-# Mesures de performance
+# Performance measurements
 
-Machine : Windows 11, build release (`pnpm tauri build`), 10/11/2026. Mesures faites **sans
-Launchpad branché ni loopMIDI**, donc au repos ; l'usage intensif réel reste à mesurer sur le
-matériel.
+Machine: Windows 11, release build (`pnpm tauri build`), 2026-11-10. Measurements were taken
+**without a Launchpad plugged in and without loopMIDI**, i.e. at idle; real heavy usage still has
+to be measured on hardware.
 
-| Objectif (spec §6) | Mesure | Résultat |
+| Target (spec §6) | Measurement | Result |
 |---|---|---|
-| CPU ≈ 0 % au repos | 0,000 % fenêtre fermée ; 0,010 % fenêtre ouverte (10 s, tous cœurs, WebView2 incluse) | ✅ |
-| CPU < 1 % en usage intensif | coût de routage 54 ns/message (voir ci-dessous) → < 0,01 % même à 1000 msg/s | ✅ (calcul, pas mesuré sur matériel) |
-| RAM < 80 Mo | **6,1 Mo** privés fenêtre fermée (icône de notification) ; **~198 Mo** fenêtre ouverte, dont ~192 Mo pour les 6 processus WebView2 | ✅ en fond / ❌ fenêtre ouverte |
-| Latence ajoutée < 1 ms | 54 ns par message (test `routing_latency_under_1ms`, release, fausses sorties) | ✅ |
-| Rejeu au changement de cible < 100 ms | 41 messages envoyés, test `switch_key_is_reserved_and_replays_led_state` | ✅ (hors temps USB du Launchpad) |
-| Binaire installé < 15 Mo | `midipadrouter.exe` 6,9 Mo ; installeur NSIS 1,7 Mo, MSI 2,5 Mo | ✅ |
+| CPU ≈ 0 % at idle | 0.000 % window closed; 0.010 % window open (10 s, all cores, WebView2 included) | ✅ |
+| CPU < 1 % under heavy use | routing cost 54 ns/message (see below) → < 0.01 % even at 1000 msg/s | ✅ (computed, not measured on hardware) |
+| RAM < 80 MB | **6.1 MB** private, window closed (tray icon); **~198 MB** window open, of which ~192 MB for the 6 WebView2 processes | ✅ in background / ❌ window open |
+| Added latency < 1 ms | 54 ns per message (test `routing_latency_under_1ms`, release, fake outputs) | ✅ |
+| Replay on target switch < 100 ms | 41 messages sent, test `switch_key_is_reserved_and_replays_led_state` | ✅ (excluding the Launchpad's USB time) |
+| Installed binary < 15 MB | `midipadrouter.exe` 6.9 MB; NSIS installer 1.7 MB, MSI 2.5 MB | ✅ |
 
 ## Notes
 
-- **RAM fenêtre ouverte** : le coût vient de WebView2 (Edge), pas de l'application. Pour tenir
-  l'objectif là où il compte (pendant l'émission, fenêtre fermée), fermer la fenêtre **détruit** la
-  WebView ; le routage continue dans le cœur Rust (6 Mo). La rouvrir la recrée (~1 s).
-- Pas de scrutation en continu : le thread UI dort sur un canal (0 réveil au repos) ; le thread des
-  ports se réveille toutes les 5 s pour lire la liste des ports (voir `DECISIONS.md`).
+- **RAM with the window open**: the cost comes from WebView2 (Edge), not from the application. To
+  meet the target where it matters (during a broadcast, window closed), closing the window
+  **destroys** the WebView; routing keeps running in the Rust core (6 MB). Reopening it recreates
+  the WebView (~1 s).
+- No continuous polling: the UI thread sleeps on a channel (0 wake-ups at idle); the ports thread
+  wakes every 5 s to read the port list (see `DECISIONS.md`).
 
-## Reproduire
+## Reproduce
 
 ```bash
 cd src-tauri && cargo test --release routing_latency -- --nocapture
 ```
 
-Mémoire et CPU : lancer l'exe release puis sommer `PrivateMemorySize64` et `TotalProcessorTime`
-du processus `midipadrouter` et de ses enfants `msedgewebview2` (PowerShell `Get-Process`).
+Memory and CPU: run the release exe, then sum `PrivateMemorySize64` and `TotalProcessorTime` for
+the `midipadrouter` process and its `msedgewebview2` children (PowerShell `Get-Process`).

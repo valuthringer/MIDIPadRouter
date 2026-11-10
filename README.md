@@ -1,74 +1,73 @@
 # MIDIPadRouter
 
-**Un seul Launchpad Mini, plusieurs logiciels.** MIDIPadRouter (MIDIPR) se place entre votre
-Novation Launchpad Mini MK1 et vos logiciels (par exemple deux logiciels de radio). Chaque logiciel
-croit avoir « son » Launchpad.
+**One Launchpad Mini, several applications.** MIDIPadRouter (MIDIPR) sits between your
+Novation Launchpad Mini MK1 and your software (for example two radio automation programs). Each
+program believes it has "its own" Launchpad.
 
-- **Mode Bascule** : un logiciel à la fois reçoit tout le Launchpad. On change avec la touche ⇄ du
-  Launchpad (bouton rond en haut à droite par défaut), un raccourci clavier (`Ctrl+Alt+1`,
-  `Ctrl+Alt+2`…) ou un clic. Le Launchpad réaffiche aussitôt les lumières du logiciel choisi.
-- **Mode Combiné** : tous les logiciels en même temps ; vous « peignez » chaque touche de la couleur
-  du logiciel qui la reçoit.
+- **Switch mode**: one application at a time receives the whole Launchpad. Change with the ⇄ key
+  on the Launchpad (the round top-right button by default), a keyboard shortcut (`Ctrl+Alt+1`,
+  `Ctrl+Alt+2`…) or a click. The Launchpad immediately redisplays the lights of the selected
+  application.
+- **Combined mode**: all applications at once; you "paint" each key with the color of the
+  application that receives it.
 
-Application légère (Tauri + Rust) : environ 0 % de processeur au repos.
+Lightweight app (Tauri + Rust): about 0 % CPU when idle.
 
 ## Installation
 
-Téléchargez l'installeur Windows (`MIDIPadRouter_x.y.z_x64-setup.exe` ou `.msi`) et lancez-le.
-macOS et Linux : compilez depuis les sources (voir plus bas).
+Download the Windows installer (`MIDIPadRouter_x.y.z_x64-setup.exe` or `.msi`) and run it.
+macOS and Linux: build from source (see below).
 
-## Comment brancher mes 2 logiciels de radio (Windows)
+## How to connect my 2 radio programs (Windows)
 
-Chaque logiciel a besoin de **deux « tuyaux » MIDI** : un pour recevoir les pads, un pour renvoyer
-les lumières. MIDIPadRouter ne peut pas créer ces tuyaux lui-même sous Windows.
+Each program needs **two MIDI "pipes"**: one to receive the pads, one to send the lights back.
+MIDIPadRouter cannot create these pipes itself on Windows.
 
-1. **Créez les tuyaux.**
-   - Windows 11 à jour : ouvrez *Windows MIDI Services* et créez des ports « loopback ».
-   - Sinon : installez [loopMIDI](https://www.tobias-erichsen.de/software/loopmidi.html) (gratuit),
-     puis créez, avec le bouton **+**, ces 4 ports (noms exacts) :
+1. **Create the pipes.**
+   - Up-to-date Windows 11: open *Windows MIDI Services* and create "loopback" ports.
+   - Otherwise: install [loopMIDI](https://www.tobias-erichsen.de/software/loopmidi.html) (free),
+     then create these 4 ports with the **+** button (exact names):
      - `MIDIPadRouter A in`
      - `MIDIPadRouter A out`
      - `MIDIPadRouter B in`
      - `MIDIPadRouter B out`
-2. **Branchez le Launchpad Mini** et lancez MIDIPadRouter. L'assistant vérifie le Launchpad puis les
-   4 ports (🟢 trouvé / 🔴 manquant).
-3. **Dans le logiciel de radio A** : comme *entrée* MIDI (ou « contrôleur »), choisissez
-   `MIDIPadRouter A in` ; comme *sortie* MIDI (lumières), choisissez `MIDIPadRouter A out`.
-   **Ne choisissez plus le Launchpad directement** : c'est MIDIPadRouter qui l'utilise.
-4. **Dans le logiciel de radio B** : pareil avec `MIDIPadRouter B in` / `MIDIPadRouter B out`.
-5. Choisissez le mode (Bascule ou Combiné). C'est tout : la configuration est enregistrée
-   automatiquement.
+2. **Plug in the Launchpad Mini** and start MIDIPadRouter. The wizard checks the Launchpad, then
+   the 4 ports (🟢 found / 🔴 missing).
+3. **In radio program A**: as MIDI *input* (or "controller"), choose `MIDIPadRouter A in`; as MIDI
+   *output* (lights), choose `MIDIPadRouter A out`.
+   **Do not select the Launchpad directly anymore**: MIDIPadRouter uses it.
+4. **In radio program B**: same with `MIDIPadRouter B in` / `MIDIPadRouter B out`.
+5. Choose the mode (Switch or Combined). That's it: the configuration is saved automatically.
 
-Si l'en-tête affiche « Launchpad occupé par un autre logiciel », un de vos logiciels de radio ouvre
-encore le Launchpad directement : changez son réglage (étape 3) et redémarrez-le.
+If the header shows "Launchpad used by another program", one of your radio programs still
+opens the Launchpad directly: change its setting (step 3) and restart it.
 
-Sur macOS / Linux, l'assistant propose « Créer les ports virtuels » : rien à installer.
+On macOS / Linux, the wizard offers "Create virtual ports": nothing to install.
 
-## Au quotidien
+## Day to day
 
-- Fermer la fenêtre la **réduit dans la zone de notification** : le routage continue. L'icône
-  permet de changer de logiciel actif, de profil, ou de quitter.
-- **Profils** (en haut) : « Émission matin », « Jingles »… un clic pour changer. Import/export en
-  fichier `.json`.
-- **Paramètres** (⚙) : langue, thème, lancement au démarrage, démarrage réduit, touche de bascule,
-  relancer l'assistant.
-- **Moniteur MIDI** (en bas, replié) : les 50 derniers messages, pour le dépannage.
+- Closing the window **minimizes it to the notification area**: routing keeps running. The icon
+  lets you change the active application, switch profile, or quit.
+- **Profiles** (top): "Morning show", "Jingles"… one click to switch. Import/export as a `.json`
+  file.
+- **Settings** (⚙): language, theme, launch at startup, start minimized, switch key, rerun the
+  wizard.
+- **MIDI monitor** (bottom, collapsed): the last 50 messages, for troubleshooting.
 
-La configuration est dans `%APPDATA%\fr.midipadrouter.app\config.json`.
+The configuration is stored in `%APPDATA%\fr.midipadrouter.app\config.json`.
 
-## Développement
+## Development
 
-Prérequis : Rust stable, Node 22, pnpm 10 (et les outils de build C++ de Visual Studio sous
-Windows).
+Requirements: stable Rust, Node 22, pnpm 10 (and the Visual Studio C++ build tools on Windows).
 
 ```bash
 pnpm install
-pnpm tauri dev      # lancer en développement
-pnpm test           # tests front (Vitest)
+pnpm tauri dev      # run in development
+pnpm test           # front-end tests (Vitest)
 pnpm lint && pnpm check
 cd src-tauri && cargo test && cargo clippy --all-targets -- -D warnings
-pnpm tauri build    # installeurs MSI / NSIS dans src-tauri/target/release/bundle
+pnpm tauri build    # MSI / NSIS installers in src-tauri/target/release/bundle
 ```
 
-Organisation : `src-tauri/src/devices` (protocole du Launchpad), `src-tauri/src/midi` (routeur et
-ports), `src/lib` (interface Svelte). Voir `DECISIONS.md` et `PERF.md`.
+Layout: `src-tauri/src/devices` (Launchpad protocol), `src-tauri/src/midi` (router and ports),
+`src/lib` (Svelte UI). See `DECISIONS.md` and `PERF.md`.

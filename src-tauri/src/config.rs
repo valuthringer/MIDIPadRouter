@@ -162,8 +162,8 @@ impl Default for Config {
         };
         Config {
             version: CURRENT_VERSION,
-            active_profile: "Par défaut".into(),
-            profiles: [("Par défaut".to_string(), profile)].into_iter().collect(),
+            active_profile: "Default".into(),
+            profiles: [("Default".to_string(), profile)].into_iter().collect(),
             settings: Settings::default(),
         }
     }

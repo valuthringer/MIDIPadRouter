@@ -23,7 +23,8 @@ pub const BUFFER_FLASH: u8 = 0x28;
 
 /// LED flags: normal display (copy + clear).
 pub const FLAGS_NORMAL: u8 = 12;
-/// LED flags: flashing (copy only, used with auto-flash `B0 00 28`).
+/// LED flags: flashing (clear only: lit in the update buffer, off in the other one;
+/// auto-flash `B0 00 28` alternates them).
 #[allow(dead_code)] // protocol reference, used by tests
 pub const FLAGS_FLASH: u8 = 8;
 /// LED flags: double buffering (write update buffer only).

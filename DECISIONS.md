@@ -1,86 +1,88 @@
-# Décisions
+# Decisions
 
-Choix non couverts (ou ajustés) par la spécification, du plus important au moins important.
+Choices not covered (or adjusted) by the specification, from most to least important.
 
-## Protocole Launchpad Mini MK1 (vérification de la section 4)
+## Launchpad Mini MK1 protocol (verification of section 4)
 
-- Vérifié contre le *Launchpad Programmer's Reference* et l'implémentation de la crate `launchy`.
-- **Correction de la spec** : les drapeaux LED sont `12` = affichage normal, `8` = **clignotement**
-  (bit *copy* seul, utilisé avec `B0 00 28`), `0` = **double buffering** (écrit seulement le tampon
-  de mise à jour). La spec inversait « copie » et « clignotement ».
-- Constantes et tests dans `src-tauri/src/devices/launchpad_mini_mk1.rs`.
-- L'ordre des index de touches (0..63 grille, 64..71 latéraux, 72..79 haut) est celui de la
-  *mise à jour rapide* (`92h`) du manuel : le décodage des mises à jour rapides d'un logiciel
-  devient trivial.
-- Messages spéciaux envoyés par les logiciels :
-  - `B0 00 00` (reset) : **émulé** sur le tampon du logiciel ; on éteint seulement ses touches visibles.
-  - `B0 00 01/02` (layout X-Y / drum rack), contrôle de tampon autre que `20h`/`28h`, test LED
-    `7Dh..7Fh`, duty cycle (CC 30/31), SysEx, autres canaux : **bloqués**.
-  - `B0 00 20` / `B0 00 28` (clignotement automatique arrêt/marche, tampon 0) : transmis, sans
-    effet sur la cohérence de l'état.
-  - `92h` (mise à jour rapide) : décodé en LEDs individuelles, filtré par propriétaire.
-- Rejeu au changement de cible : `B0 00 00` puis 40 messages de mise à jour rapide (80 LEDs).
-- « Launchpad Mini » est accepté (MK1 et Mini MK2, même protocole). Tout autre nom contenant
-  « Launchpad », « MK3 », « LPMini », « LPX », « LPPro » affiche « Modèle non supporté ».
+- Verified against the *Launchpad Programmer's Reference*, the `launchy` crate and
+  `Athaphian/web-midi-launchpad` (`(flashing ? 8 : 12) | green << 4 | red`).
+- Velocity = `16 × green + red + flags`, green and red from 0 to 3. Bit 3 (8) = *Clear* (clears
+  the LED in the other buffer), bit 2 (4) = *Copy* (writes the LED to both buffers).
+- **Spec correction**: the LED flags are `12` = normal display (Clear + Copy), `8` = **flashing**
+  (Clear only: lit in one buffer, off in the other, alternated by `B0 00 28`), `0` =
+  **double buffering** (writes only the update buffer). The spec swapped "copy" and "flashing".
+- Constants and tests are in `src-tauri/src/devices/launchpad_mini_mk1.rs`.
+- The key index order (0..63 grid, 64..71 side, 72..79 top) is that of the manual's *rapid update*
+  (`92h`): decoding an application's rapid updates becomes trivial.
+- Special messages sent by applications:
+  - `B0 00 00` (reset): **emulated** on the application's buffer; only its visible keys are turned off.
+  - `B0 00 01/02` (X-Y layout / drum rack), buffer control other than `20h`/`28h`, LED test
+    `7Dh..7Fh`, duty cycle (CC 30/31), SysEx, other channels: **blocked**.
+  - `B0 00 20` / `B0 00 28` (automatic flashing off/on, buffer 0): forwarded, with no effect on
+    state consistency.
+  - `92h` (rapid update): decoded into individual LEDs, filtered by owner.
+- Replay on target switch: `B0 00 00` then 40 rapid update messages (80 LEDs).
+- "Launchpad Mini" is accepted (MK1 and Mini MK2, same protocol). Any other name containing
+  "Launchpad", "MK3", "LPMini", "LPX", "LPPro" shows "Unsupported model".
 
 ## Architecture
 
-- **Un seul `Mutex` std** autour du routeur au lieu de `ArcSwap`/`parking_lot` : le trafic MIDI est
-  minuscule, le verrou n'est tenu que le temps de quelques `send` (mesuré < 1 µs par message, voir
-  `PERF.md`) et cela évite deux dépendances. Les connexions d'entrée sont toujours fermées verrou
-  relâché (leur fermeture attend le callback qui prend ce verrou).
-- `led_state.rs` et `messages.rs` de l'arborescence proposée n'existent pas : le tampon LED est un
-  `[u8; 80]` dans `Target` et l'analyse/encodage MIDI est par nature propre au modèle, donc dans le
-  `DeviceProfile`. `tray.rs` est séparé de `main.rs` pour la lisibilité.
-- Notifications UI : canal borné (`sync_channel(1)`, `try_send`, sans allocation) réveillant un
-  thread qui attend 33 ms (≤ 30 Hz), puis émet un instantané complet seulement si la fenêtre est
-  visible et non réduite. Au retour de la fenêtre, le front redemande l'état.
-- `activeTarget` appartient au backend (touche du Launchpad, raccourci, tray) : il est persisté par le
-  thread UI, hors du chemin chaud, et la sauvegarde venant du front ne l'écrase pas.
+- **A single std `Mutex`** around the router instead of `ArcSwap`/`parking_lot`: MIDI traffic is
+  tiny, the lock is held only for a few `send` calls (measured < 1 µs per message, see `PERF.md`)
+  and it avoids two dependencies. Input connections are always closed with the lock released
+  (closing one waits for the callback that takes this lock).
+- `led_state.rs` and `messages.rs` from the proposed tree do not exist: the LED buffer is a
+  `[u8; 80]` in `Target`, and MIDI parsing/encoding is inherently model-specific, so it lives in
+  the `DeviceProfile`. `tray.rs` is split from `main.rs` for readability.
+- UI notifications: bounded channel (`sync_channel(1)`, `try_send`, no allocation) waking a thread
+  that waits 33 ms (≤ 30 Hz), then emits a full snapshot only if the window is visible and not
+  minimized. When the window comes back, the front end requests the state again.
+- `activeTarget` belongs to the backend (Launchpad key, shortcut, tray): it is persisted by the UI
+  thread, off the hot path, and a save coming from the front end does not overwrite it.
 
-## Robustesse
+## Robustness
 
-- **Écart volontaire à la spec 3.6** : quand tout est connecté, la liste des ports est relue toutes
-  les **5 s** (pas seulement quand un port manque). Sans cela, un Launchpad débranché puis
-  rebranché sans trafic LED entre-temps reste muet pour toujours (midir ne signale pas les
-  débranchements). Coût mesuré : négligeable. Quand un port manque : 2 s puis 5 s.
-- Nouveau statut **« Launchpad occupé »** : le Launchpad est présent mais ne peut être ouvert (un
-  logiciel de radio l'utilise encore directement — cas le plus fréquent sous Windows).
-- Config illisible/invalide au démarrage : renommée en `config.invalid.json` (jamais supprimée),
-  configuration par défaut chargée, message à l'utilisateur.
-- Plugin `single-instance` : une 2ᵉ instance se battrait pour le Launchpad ; elle met la 1ʳᵉ au
-  premier plan.
-- Fermer la fenêtre **détruit la WebView** (≈ 190 Mo libérés, voir `PERF.md`) ; le routage continue
-  dans le cœur Rust et l'icône de notification reste. « Quitter » est dans le menu de l'icône. La
-  fenêtre est recréée à l'ouverture (icône, 2ᵉ lancement, sauf « Démarrer réduit »).
-- Les raccourcis globaux ne sont enregistrés qu'en mode Bascule (ils ne servent qu'à changer de
-  cible) : en mode Combiné les touches restent libres pour les autres programmes.
-- Clés d'attribution : `pad:<note MIDI>` et `cc:<numéro>`, comme `switchKey` (`type` = `pad`|`cc`).
+- **Deliberate deviation from spec 3.6**: when everything is connected, the port list is re-read
+  every **5 s** (not only when a port is missing). Without this, a Launchpad unplugged then
+  replugged with no LED traffic in between stays silent forever (midir does not report
+  unplugging). Measured cost: negligible. When a port is missing: 2 s then 5 s.
+- New **"Launchpad busy"** status: the Launchpad is present but cannot be opened (a radio program
+  still uses it directly — the most common case on Windows).
+- Unreadable/invalid config at startup: renamed to `config.invalid.json` (never deleted), default
+  configuration loaded, message shown to the user.
+- `single-instance` plugin: a 2nd instance would fight for the Launchpad; it brings the 1st one to
+  the foreground.
+- Closing the window **destroys the WebView** (≈ 190 MB freed, see `PERF.md`); routing continues
+  in the Rust core and the tray icon stays. "Quit" is in the icon's menu. The window is recreated
+  on open (icon, 2nd launch, unless "Start minimized").
+- Global shortcuts are registered only in Switch mode (they only serve to change target): in
+  Combined mode the keys stay free for other programs.
+- Assignment keys: `pad:<MIDI note>` and `cc:<number>`, like `switchKey` (`type` = `pad`|`cc`).
 
 ## Interface
 
-- Le pinceau se choisit dans la barre d'outils de la grille ; « par colonne / par ligne » est une
-  **forme de pinceau** (un clic peint la ligne/colonne entière).
-- La touche de bascule est choisie parmi les 16 boutons ronds (haut et latéraux) ; elle n'est
-  utilisée qu'en mode Bascule mais reste réservée dans les deux modes (validation).
-- « Refléter sur le Launchpad » est un interrupteur : tant qu'il est actif, le Launchpad montre le
-  propriétaire de chaque touche (couleurs Launchpad approximatives : vert, rouge, ambre, jaune,
-  orange), les LEDs des logiciels restent mémorisées puis sont rejouées.
-- En mode Bascule, la touche de bascule s'allume dans la couleur Launchpad de la cible active.
-- Ports virtuels (macOS/Linux) : réglage global `virtualPorts` ; noms `MIDIPadRouter X in/out`.
-- Liens d'aide ouverts par une commande Rust avec URL fixes (pas de permission « ouvrir n'importe
-  quelle URL » côté web).
+- The brush is chosen in the grid toolbar; "by column / by row" is a **brush shape** (one click
+  paints the whole row/column).
+- The switch key is chosen among the 16 round buttons (top and side); it is only used in Switch
+  mode but stays reserved in both modes (validation).
+- "Mirror on the Launchpad" is a toggle: while it is on, the Launchpad shows each key's owner
+  (approximate Launchpad colors: green, red, amber, yellow, orange), and the applications' LEDs
+  stay memorized and are replayed afterwards.
+- In Switch mode, the switch key lights up in the Launchpad color of the active target.
+- Virtual ports (macOS/Linux): global `virtualPorts` setting; names `MIDIPadRouter X in/out`.
+- Help links are opened by a Rust command with fixed URLs (no "open any URL" permission on the web
+  side).
 
-## Dépendances
+## Dependencies
 
-Rust :
-- `tauri` (+ `tray-icon`) : shell imposé par la spec.
-- `tauri-plugin-global-shortcut`, `tauri-plugin-autostart` : imposés par la spec.
-- `tauri-plugin-dialog` : sélection de fichier pour l'import/export de profils.
-- `tauri-plugin-opener` : ouvrir les pages loopMIDI / Windows MIDI Services.
-- `tauri-plugin-single-instance` : voir Robustesse.
-- `midir`, `serde`, `serde_json` : imposés par la spec.
+Rust:
+- `tauri` (+ `tray-icon`): shell required by the spec.
+- `tauri-plugin-global-shortcut`, `tauri-plugin-autostart`: required by the spec.
+- `tauri-plugin-dialog`: file picker for profile import/export.
+- `tauri-plugin-opener`: open the loopMIDI / Windows MIDI Services pages.
+- `tauri-plugin-single-instance`: see Robustness.
+- `midir`, `serde`, `serde_json`: required by the spec.
 
-JS (dev seulement, sauf `@tauri-apps/api`) : Svelte 5, Vite, TypeScript, Tailwind 4, Vitest,
-ESLint, Prettier, svelte-check — imposés par la spec. TypeScript est fixé en 6.0 car
-`typescript-eslint` ne prend pas encore TypeScript 7 en charge.
+JS (dev only, except `@tauri-apps/api`): Svelte 5, Vite, TypeScript, Tailwind 4, Vitest, ESLint,
+Prettier, svelte-check — required by the spec. TypeScript is pinned to 6.0 because
+`typescript-eslint` does not support TypeScript 7 yet.
