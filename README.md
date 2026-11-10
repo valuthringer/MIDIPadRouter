@@ -13,6 +13,12 @@ program believes it has "its own" Launchpad.
 
 Lightweight app (Tauri + Rust): about 0 % CPU when idle.
 
+## Supported pads
+
+- Novation Launchpad Mini MK1
+
+Other models are not supported yet and are reported as "Unsupported model".
+
 ## Installation
 
 Download the Windows installer (`MIDIPadRouter_x.y.z_x64-setup.exe` or `.msi`) and run it.
@@ -20,8 +26,8 @@ macOS and Linux: build from source (see below).
 
 ## How to connect my 2 radio programs (Windows)
 
-Each program needs **two MIDI "pipes"**: one to receive the pads, one to send the lights back.
-MIDIPadRouter cannot create these pipes itself on Windows.
+Each program needs **two MIDI "pipes"**: one to receive the pads, one to send the lights back: **`in` carries the key presses, `out`
+carries the lights on the keys**. MIDIPadRouter cannot create these pipes itself on Windows.
 
 1. **Create the pipes.**
    - Up-to-date Windows 11: open *Windows MIDI Services* and create "loopback" ports.
@@ -33,8 +39,8 @@ MIDIPadRouter cannot create these pipes itself on Windows.
      - `MIDIPadRouter B out`
 2. **Plug in the Launchpad Mini** and start MIDIPadRouter. The wizard checks the Launchpad, then
    the 4 ports (🟢 found / 🔴 missing).
-3. **In radio program A**: as MIDI *input* (or "controller"), choose `MIDIPadRouter A in`; as MIDI
-   *output* (lights), choose `MIDIPadRouter A out`.
+3. **In radio program A**: as MIDI *input* (or "controller": receives the key presses), choose `MIDIPadRouter A in`; as
+   MIDI *output* (sends the lights on the keys), choose `MIDIPadRouter A out`.
    **Do not select the Launchpad directly anymore**: MIDIPadRouter uses it.
 4. **In radio program B**: same with `MIDIPadRouter B in` / `MIDIPadRouter B out`.
 5. Choose the mode (Switch or Combined). That's it: the configuration is saved automatically.

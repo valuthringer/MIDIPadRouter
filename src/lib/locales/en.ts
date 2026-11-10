@@ -112,7 +112,7 @@ const en: Messages = {
     'This Launchpad is not a Launchpad Mini MK1: this model is not supported yet.',
   'wizard.portsTitle': 'Create the ports of your applications',
   'wizard.pipes':
-    'Each application needs two MIDI “pipes”: one to receive the pads, one to send the lights back. A single pipe used both ways would create a loop.',
+    'Each application needs two MIDI “pipes”: one to receive the pads, one to send the lights back. “in” ports carry the key presses, “out” ports carry the lights on the keys. A single pipe used both ways would create a loop.',
   'wizard.portsWin':
     'Up-to-date Windows 11: create “loopback” ports in Windows MIDI Services. Otherwise install loopMIDI (free) and create, with its + button, ports named exactly as below:',
   'wizard.loopmidi': 'Download loopMIDI',
@@ -122,7 +122,8 @@ const en: Messages = {
   'wizard.virtualDone': 'Virtual ports enabled.',
   'wizard.found': 'found',
   'wizard.missing': 'missing',
-  'wizard.inApp': 'In “{name}”, choose MIDI input “{to}” and MIDI output “{from}”.',
+  'wizard.inApp':
+    'In “{name}”, choose MIDI input “{to}” (receives the key presses) and MIDI output “{from}” (sends the lights on the keys).',
   'wizard.useDefaults': 'Use these names for every application',
   'wizard.modeTitle': 'How do you use your applications?',
   'wizard.switchDesc':
